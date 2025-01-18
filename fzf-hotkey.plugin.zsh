@@ -1,6 +1,16 @@
 # Load fzf integration
 source <(fzf --zsh)
 
+# Check for bat or batcat command
+if command -v bat >/dev/null 2>&1; then
+    BAT_CMD="bat"
+elif command -v batcat >/dev/null 2>&1; then
+    BAT_CMD="batcat"
+else
+    echo "Neither 'bat' nor 'batcat' is installed. Please install one of them for better file preview functionality."
+    BAT_CMD=""
+fi
+
 # CTRL-Y to copy the command into clipboard using pbcopy
 export FZF_CTRL_R_OPTS="
   --bind 'ctrl-y:execute-silent(echo -n {2..} | pbcopy)+abort'
@@ -8,12 +18,19 @@ export FZF_CTRL_R_OPTS="
   --header 'Press CTRL-Y to copy command into clipboard'
   --height 80% --layout reverse"
 
-# Preview file content using bat (https://github.com/sharkdp/bat)
-export FZF_CTRL_T_OPTS="
-  --walker-skip .git,node_modules,target
-  --preview 'batcat -n --color=always {}'
-  --bind 'ctrl-/:change-preview-window(down|hidden|)'
-  --height 80% --layout reverse"
+# Preview file content using bat or batcat
+if [ -n "$BAT_CMD" ]; then
+    export FZF_CTRL_T_OPTS="
+      --walker-skip .git,node_modules,target
+      --preview '$BAT_CMD -n --color=always {}'
+      --bind 'ctrl-/:change-preview-window(down|hidden|)'
+      --height 80% --layout reverse"
+else
+    export FZF_CTRL_T_OPTS="
+      --walker-skip .git,node_modules,target
+      --preview 'echo \"Please install 'bat' or 'batcat' for preview functionality.\"'
+      --height 80% --layout reverse"
+fi
 
 # Print tree structure in the preview window
 export FZF_ALT_C_OPTS="
@@ -36,10 +53,11 @@ rfv() (
       --bind "ctrl-o:execute:$OPENER" \
       --bind 'alt-a:select-all,alt-d:deselect-all,ctrl-/:toggle-preview' \
       --delimiter : \
-      --preview 'batcat --style=full --color=always --highlight-line {2} {1}' \
+      --preview '$BAT_CMD --style=full --color=always --highlight-line {2} {1}' \
       --preview-window '~4,+{2}+4/3,<80(up)' \
       --query "$*"
 )
+
 
 autoload -Uz add-zsh-hook
 add-zsh-hook precmd auto_activate
